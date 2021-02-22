@@ -299,9 +299,6 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	             }
 	             
 	             log.complete(null);
-	             
-	             
-	             
 	         }
 	         
 	         // sort and get the times
