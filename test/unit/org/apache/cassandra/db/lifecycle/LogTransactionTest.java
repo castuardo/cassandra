@@ -40,6 +40,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import junit.framework.Assert;
+import ucare.wts.profiling.papi.PAPIProfiler;
+
 import org.apache.cassandra.MockSchema;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Directories;
@@ -62,11 +64,16 @@ import org.apache.cassandra.utils.concurrent.Transactional;
 public class LogTransactionTest extends AbstractTransactionalTest
 {
     private static final String KEYSPACE = "TransactionLogsTest";
-
+    // @cesar: I added this profiler here
+    private static final PAPIProfiler profiler = PAPIProfiler.INSTANCE;
+    
+    
     @BeforeClass
     public static void setUp()
     {
         MockSchema.cleanup();
+        // @cesar: This has to be stup somewhere, this might not be the best place for this...
+        profiler.setupProfilingEnvironment("/tmp");
     }
 
     protected AbstractTransactionalTest.TestableTransaction newTest() throws Exception
@@ -222,6 +229,91 @@ public class LogTransactionTest extends AbstractTransactionalTest
         assertFiles(dataFolder.getPath(), Collections.<String>emptySet());
     }
 
+    // @cesar: This is supposed to be a performance test, using large inputs for sstables
+    @Test
+    public void testRemoveUnfinishedLeftovers_perf() throws Throwable {
+    	
+    	 ColumnFamilyStore cfs = MockSchema.newCFS(KEYSPACE);
+         File dataFolder = new Directories(cfs.metadata).getDirectoryForNewSSTables();
+         
+         System.out.println("In dir=[" + dataFolder.getAbsolutePath() + "]");
+         
+         int exp = 1;
+         int base = 10;
+         int maxExp = 1;
+         int runs = 3;
+         
+         List<Long> allTimes = new ArrayList<Long>(); 
+         
+         for(int ee = exp; ee <= maxExp; ++ee) {
+        	 
+        	 int numTables = (int)Math.pow(base, ee);
+        	 
+        	 List<Long> times = new ArrayList<Long>(); 
+	         
+        	 for(int i = 0; i < runs; ++i) {
+        		 
+	        	 List<SSTableReader> readers = new ArrayList<>();
+	        	 List<LogTransaction.SSTableTidier> tidiers = new ArrayList<>();
+	        	 
+	        	 for(int nt = 0; nt < numTables; ++nt) {
+	        		 readers.add(sstable(dataFolder, cfs, nt, 0));
+	        	 }
+	        	 // simulate tracking sstables with a committed transaction (new log file deleted)
+	             LogTransaction log = new LogTransaction(OperationType.COMPACTION);
+	             
+	             log.trackNew(readers.get(numTables - 1));
+	             
+	             for(int nt = 0; nt < numTables - 1; ++nt) {
+	            	 tidiers.add(log.obsoleted(readers.get(nt)));
+	             }
+	             
+	             //Fake a commit
+	             log.txnFile().commit();
+	             
+	             for(int nt = 0; nt < numTables; ++nt) {
+	            	 readers.get(nt).selfRef().release();
+	             }
+	             
+	             // @cesar: start counting instructions here
+	             profiler.beginProfilingRegion("LogTransaction.removeUnfinishedLeftovers");
+	             
+	             // long start = System.currentTimeMillis();
+	             // normally called at startup
+	             LogTransaction.removeUnfinishedLeftovers(cfs.metadata);
+	             // long elapsed = System.currentTimeMillis() - start;
+	             // times.add(elapsed);
+	             // allTimes.add(elapsed);
+	             
+	             // @cesar: and stop here...
+	             profiler.endProfilingRegion("LogTransaction.removeUnfinishedLeftovers");
+	             
+	             // sstableNew should be only table left
+	             // directories = new Directories(cfs.metadata);
+	             // sstables = directories.sstableLister(Directories.OnTxnErr.THROW).list();
+	             
+	             // System.out.println("AfterCommit=" + sstables.size());
+	             
+	             for(LogTransaction.SSTableTidier tt : tidiers) {
+	            	 tt.run();
+	             }
+	             
+	             log.complete(null);
+	             
+	             
+	             
+	         }
+	         
+	         // sort and get the times
+	         // Collections.sort(times);
+	         // System.out.println("size=" + ee + ", times=" + times.toString());
+         }
+         
+         // Collections.sort(allTimes);
+         // System.out.println("alltimes=" + allTimes.toString());
+    }
+    
+    
     @Test
     public void testCommitSameDesc() throws Throwable
     {

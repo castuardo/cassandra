@@ -563,6 +563,7 @@ public class MigrationManager
     // Returns a future on the local application of the schema
     private static Future<?> announce(final Collection<Mutation> schema)
     {
+    	// @cesar: Submit task here, to this executor
         Future<?> f = StageManager.getStage(Stage.MIGRATION).submit(new WrappedRunnable()
         {
             protected void runMayThrow() throws ConfigurationException
