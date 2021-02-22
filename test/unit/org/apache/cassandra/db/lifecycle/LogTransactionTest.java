@@ -294,6 +294,8 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	             
 	             // System.out.println("AfterCommit=" + sstables.size());
 	             
+	             
+	             
 	             for(LogTransaction.SSTableTidier tt : tidiers) {
 	            	 tt.run();
 	             }
