@@ -65,16 +65,13 @@ public class LogTransactionTest extends AbstractTransactionalTest
 {
     private static final String KEYSPACE = "TransactionLogsTest";
     // @cesar: I added this profiler here
-    private static final PAPIProfiler profiler = PAPIProfiler.INSTANCE;
+    private static final PAPIProfiler profiler = new PAPIProfiler(LogTransactionTest.class.getSimpleName());
     
     
     @BeforeClass
     public static void setUp()
     {
         MockSchema.cleanup();
-        // @cesar: This has to be stup somewhere, this might not be the best place for this...
-        boolean result = profiler.setupProfilingEnvironment("performance_measurements");
-        System.out.println("setup=" + result);
     }
 
     protected AbstractTransactionalTest.TestableTransaction newTest() throws Exception
@@ -239,78 +236,47 @@ public class LogTransactionTest extends AbstractTransactionalTest
          
          System.out.println("In dir=[" + dataFolder.getAbsolutePath() + "]");
          
-         int [] powers = new int [] {2, 16, 64, 256, 1024, 2048, 4096};
-         int runs = 1;
+         int [] trxs = new int [] {2, 16, 64, 256, 1024};
+         int [] sizes = new int [] {1024, 4096, 16384, 65536};
          
-         List<Long> allTimes = new ArrayList<Long>(); 
-         
-         for(int ee : powers) {
-        	 
-        	 int numTables = ee;
-        	 
-        	 List<Long> times = new ArrayList<Long>(); 
-	         
-        	 for(int i = 0; i < runs; ++i) {
-        		 
+         for(int trxCount : trxs) {
+        	 for(int sstableSize : sizes) {
 	        	 List<SSTableReader> readers = new ArrayList<>();
 	        	 List<LogTransaction.SSTableTidier> tidiers = new ArrayList<>();
-	        	 
-	        	 for(int nt = 0; nt < numTables; ++nt) {
-	        		 readers.add(sstable(dataFolder, cfs, nt, 0));
+	        	 for(int nt = 0; nt < trxCount; ++nt) {
+	        		 readers.add(sstable(dataFolder, cfs, nt, sstableSize));
 	        	 }
 	        	 // simulate tracking sstables with a committed transaction (new log file deleted)
 	             LogTransaction log = new LogTransaction(OperationType.COMPACTION);
 	             
-	             log.trackNew(readers.get(numTables - 1));
+	             log.trackNew(readers.get(trxCount - 1));
 	             
-	             for(int nt = 0; nt < numTables - 1; ++nt) {
+	             for(int nt = 0; nt < trxCount - 1; ++nt) {
 	            	 tidiers.add(log.obsoleted(readers.get(nt)));
 	             }
 	             
 	             //Fake a commit
 	             log.txnFile().commit();
 	             
-	             for(int nt = 0; nt < numTables; ++nt) {
+	             for(int nt = 0; nt < trxCount; ++nt) {
 	            	 readers.get(nt).selfRef().release();
 	             }
 	             
-	             
-	             
-	             String region = "LogTransaction.removeUnfinishedLeftovers_" + numTables + "_r_" + i;
-	             
+	             String region = "LogTransaction.removeUnfinishedLeftovers_" + trxCount + "_s_" + sstableSize;
 	             // @cesar: start counting instructions here
 	             boolean r1 = profiler.beginProfilingRegion(region);
 	             System.out.println("start=" + r1);
-	             // long start = System.currentTimeMillis();
-	             // normally called at startup
 	             LogTransaction.removeUnfinishedLeftovers(cfs.metadata);
-	             // long elapsed = System.currentTimeMillis() - start;
-	             // times.add(elapsed);
-	             // allTimes.add(elapsed);
-	             
 	             // @cesar: and stop here...
 	             boolean r2 = profiler.endProfilingRegion(region);
 	             System.out.println("end=" + r2);
-	             // sstableNew should be only table left
-	             // directories = new Directories(cfs.metadata);
-	             // sstables = directories.sstableLister(Directories.OnTxnErr.THROW).list();
-	             
-	             // System.out.println("AfterCommit=" + sstables.size());
-	             
 	             for(LogTransaction.SSTableTidier tt : tidiers) {
 	            	 tt.run();
 	             }
 	             
 	             log.complete(null);
 	         }
-	         
-	         // sort and get the times
-	         // Collections.sort(times);
-	         // System.out.println("size=" + ee + ", times=" + times.toString());
          }
-         
-         // Collections.sort(allTimes);
-         // System.out.println("alltimes=" + allTimes.toString());
     }
     
     
