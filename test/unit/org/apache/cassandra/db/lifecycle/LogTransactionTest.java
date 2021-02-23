@@ -241,8 +241,8 @@ public class LogTransactionTest extends AbstractTransactionalTest
          
          int exp = 1;
          int base = 10;
-         int maxExp = 1;
-         int runs = 3;
+         int maxExp = 3;
+         int runs = 1;
          
          List<Long> allTimes = new ArrayList<Long>(); 
          
@@ -276,8 +276,10 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	            	 readers.get(nt).selfRef().release();
 	             }
 	             
+	             String region = "LogTransaction.removeUnfinishedLeftovers_" + numTables + "_r_" + i;
+	             
 	             // @cesar: start counting instructions here
-	             boolean r1 = profiler.beginProfilingRegion("LogTransaction.removeUnfinishedLeftovers");
+	             boolean r1 = profiler.beginProfilingRegion(region);
 	             System.out.println("start=" + r1);
 	             // long start = System.currentTimeMillis();
 	             // normally called at startup
@@ -287,7 +289,7 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	             // allTimes.add(elapsed);
 	             
 	             // @cesar: and stop here...
-	             boolean r2 = profiler.endProfilingRegion("LogTransaction.removeUnfinishedLeftovers");
+	             boolean r2 = profiler.endProfilingRegion(region);
 	             System.out.println("end=" + r2);
 	             // sstableNew should be only table left
 	             // directories = new Directories(cfs.metadata);
