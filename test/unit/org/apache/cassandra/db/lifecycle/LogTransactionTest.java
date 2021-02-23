@@ -73,7 +73,7 @@ public class LogTransactionTest extends AbstractTransactionalTest
     {
         MockSchema.cleanup();
         // @cesar: This has to be stup somewhere, this might not be the best place for this...
-        boolean result = profiler.setupProfilingEnvironment("/tmp");
+        boolean result = profiler.setupProfilingEnvironment("performance_measurements");
         System.out.println("setup=" + result);
     }
 
