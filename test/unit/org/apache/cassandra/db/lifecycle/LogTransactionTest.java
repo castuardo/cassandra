@@ -276,6 +276,8 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	            	 readers.get(nt).selfRef().release();
 	             }
 	             
+	             
+	             
 	             String region = "LogTransaction.removeUnfinishedLeftovers_" + numTables + "_r_" + i;
 	             
 	             // @cesar: start counting instructions here
