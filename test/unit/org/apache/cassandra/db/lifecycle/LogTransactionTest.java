@@ -73,7 +73,8 @@ public class LogTransactionTest extends AbstractTransactionalTest
     {
         MockSchema.cleanup();
         // @cesar: This has to be stup somewhere, this might not be the best place for this...
-        profiler.setupProfilingEnvironment("/tmp");
+        boolean result = profiler.setupProfilingEnvironment("/tmp");
+        System.out.println("setup=" + result);
     }
 
     protected AbstractTransactionalTest.TestableTransaction newTest() throws Exception
@@ -276,8 +277,8 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	             }
 	             
 	             // @cesar: start counting instructions here
-	             profiler.beginProfilingRegion("LogTransaction.removeUnfinishedLeftovers");
-	             
+	             boolean r1 = profiler.beginProfilingRegion("LogTransaction.removeUnfinishedLeftovers");
+	             System.out.println("start=" + r1);
 	             // long start = System.currentTimeMillis();
 	             // normally called at startup
 	             LogTransaction.removeUnfinishedLeftovers(cfs.metadata);
@@ -286,8 +287,8 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	             // allTimes.add(elapsed);
 	             
 	             // @cesar: and stop here...
-	             profiler.endProfilingRegion("LogTransaction.removeUnfinishedLeftovers");
-	             
+	             boolean r2 = profiler.endProfilingRegion("LogTransaction.removeUnfinishedLeftovers");
+	             System.out.println("end=" + r2);
 	             // sstableNew should be only table left
 	             // directories = new Directories(cfs.metadata);
 	             // sstables = directories.sstableLister(Directories.OnTxnErr.THROW).list();
