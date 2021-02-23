@@ -262,7 +262,7 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	            	 readers.get(nt).selfRef().release();
 	             }
 	             
-	             String region = "LogTransaction.removeUnfinishedLeftovers_" + trxCount + "_s_" + sstableSize;
+	             String region = "LogTransaction.removeUnfinishedLeftovers_numTables_" + trxCount + "_tableSize_" + sstableSize;
 	             // @cesar: start counting instructions here
 	             boolean r1 = profiler.beginProfilingRegion(region);
 	             System.out.println("start=" + r1);
