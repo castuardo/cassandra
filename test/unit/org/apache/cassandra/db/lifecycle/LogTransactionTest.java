@@ -239,16 +239,14 @@ public class LogTransactionTest extends AbstractTransactionalTest
          
          System.out.println("In dir=[" + dataFolder.getAbsolutePath() + "]");
          
-         int exp = 1;
-         int base = 10;
-         int maxExp = 3;
+         int [] powers = new int [] {2, 16, 64, 256, 1024};
          int runs = 1;
          
          List<Long> allTimes = new ArrayList<Long>(); 
          
-         for(int ee = exp; ee <= maxExp; ++ee) {
+         for(int ee : powers) {
         	 
-        	 int numTables = (int)Math.pow(base, ee);
+        	 int numTables = ee;
         	 
         	 List<Long> times = new ArrayList<Long>(); 
 	         
