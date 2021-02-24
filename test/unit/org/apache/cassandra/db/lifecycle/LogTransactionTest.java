@@ -237,10 +237,9 @@ public class LogTransactionTest extends AbstractTransactionalTest
          System.out.println("In dir=[" + dataFolder.getAbsolutePath() + "]");
          
          // int [] trxs = new int [] {2, 16, 64, 256, 1024};
-         int [] trxs = new int [] {2048, 4096};
-         int [] sizes = new int [] {1024, 4096, 16384, 65536};
+         int [] sizes = new int [] {512};
          
-         for(int trxCount : trxs) {
+         for(int trxCount = 1; trxCount <= 4096; ++trxCount) {
         	 for(int sstableSize : sizes) {
 	        	 List<SSTableReader> readers = new ArrayList<>();
 	        	 List<LogTransaction.SSTableTidier> tidiers = new ArrayList<>();
