@@ -40,6 +40,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import junit.framework.Assert;
+import ucare.wts.profiling.jvmti.JVMTIProfiler;
 import ucare.wts.profiling.papi.PAPIProfiler;
 
 import org.apache.cassandra.MockSchema;
@@ -65,7 +66,8 @@ public class LogTransactionTest extends AbstractTransactionalTest
 {
     private static final String KEYSPACE = "TransactionLogsTest";
     // @cesar: I added this profiler here
-    private static final PAPIProfiler profiler = new PAPIProfiler(LogTransactionTest.class.getSimpleName());
+    // private static final PAPIProfiler profiler = new PAPIProfiler(LogTransactionTest.class.getSimpleName());
+    private static final JVMTIProfiler profiler = new JVMTIProfiler(LogTransactionTest.class.getSimpleName());
     
     
     @BeforeClass
@@ -264,12 +266,11 @@ public class LogTransactionTest extends AbstractTransactionalTest
 	             
 	             String region = "LogTransaction.removeUnfinishedLeftovers_numTables_" + trxCount + "_tableSize_" + sstableSize;
 	             // @cesar: start counting instructions here
-	             boolean r1 = profiler.beginProfilingRegion(region);
-	             System.out.println("start=" + r1);
+	             profiler.beginLoopTracingRegion(Thread.currentThread().getId(), region);
+	             // @cesar: start here...
 	             LogTransaction.removeUnfinishedLeftovers(cfs.metadata);
 	             // @cesar: and stop here...
-	             boolean r2 = profiler.endProfilingRegion(region);
-	             System.out.println("end=" + r2);
+	             profiler.endLoopTracingRegion(Thread.currentThread().getId(), region);
 	             for(LogTransaction.SSTableTidier tt : tidiers) {
 	            	 tt.run();
 	             }
