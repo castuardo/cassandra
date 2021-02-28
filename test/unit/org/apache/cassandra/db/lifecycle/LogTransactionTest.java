@@ -34,6 +34,17 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.Assert;
 
+import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
+import static junit.framework.Assert.fail;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import junit.framework.Assert;
+import ucare.wts.profiling.jvmti.JVMTIProfiler;
+import ucare.wts.profiling.papi.PAPIProfiler;
+
+import org.apache.cassandra.MockSchema;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Directories;
 import org.apache.cassandra.db.SerializationHeader;
@@ -61,7 +72,11 @@ import static org.junit.Assert.assertTrue;
 public class LogTransactionTest extends AbstractTransactionalTest
 {
     private static final String KEYSPACE = "TransactionLogsTest";
-
+    // @cesar: I added this profiler here
+    // private static final PAPIProfiler profiler = new PAPIProfiler(LogTransactionTest.class.getSimpleName());
+    private static final JVMTIProfiler profiler = new JVMTIProfiler(LogTransactionTest.class.getSimpleName());
+    
+    
     @BeforeClass
     public static void setUp()
     {
@@ -221,6 +236,58 @@ public class LogTransactionTest extends AbstractTransactionalTest
         assertFiles(dataFolder.getPath(), Collections.<String>emptySet());
     }
 
+    // @cesar: This is supposed to be a performance test, using large inputs for sstables
+    @Test
+    public void testRemoveUnfinishedLeftovers_perf() throws Throwable {
+    	
+    	 ColumnFamilyStore cfs = MockSchema.newCFS(KEYSPACE);
+         File dataFolder = new Directories(cfs.metadata).getDirectoryForNewSSTables();
+         
+         System.out.println("In dir=[" + dataFolder.getAbsolutePath() + "]");
+         
+         // int [] trxs = new int [] {2, 16, 64, 256, 1024};
+         int [] sizes = new int [] {512};
+         
+         for(int trxCount = 1; trxCount <= 8; ++trxCount) {
+        	 for(int sstableSize : sizes) {
+	        	 List<SSTableReader> readers = new ArrayList<>();
+	        	 List<LogTransaction.SSTableTidier> tidiers = new ArrayList<>();
+	        	 for(int nt = 0; nt < trxCount; ++nt) {
+	        		 readers.add(sstable(dataFolder, cfs, nt, sstableSize));
+	        	 }
+	        	 // simulate tracking sstables with a committed transaction (new log file deleted)
+	             LogTransaction log = new LogTransaction(OperationType.COMPACTION);
+	             
+	             log.trackNew(readers.get(trxCount - 1));
+	             
+	             for(int nt = 0; nt < trxCount - 1; ++nt) {
+	            	 tidiers.add(log.obsoleted(readers.get(nt)));
+	             }
+	             
+	             //Fake a commit
+	             log.txnFile().commit();
+	             
+	             for(int nt = 0; nt < trxCount; ++nt) {
+	            	 readers.get(nt).selfRef().release();
+	             }
+	             
+	             String region = "LogTransaction.removeUnfinishedLeftovers_numTables_" + trxCount + "_tableSize_" + sstableSize;
+	             // @cesar: start counting instructions here
+	             profiler.beginLoopTracingRegion(Thread.currentThread().getId(), region);
+	             // @cesar: start here...
+	             LogTransaction.removeUnfinishedLeftovers(cfs.metadata);
+	             // @cesar: and stop here...
+	             profiler.endLoopTracingRegion(Thread.currentThread().getId(), region);
+	             for(LogTransaction.SSTableTidier tt : tidiers) {
+	            	 tt.run();
+	             }
+	             
+	             log.complete(null);
+	         }
+         }
+    }
+    
+    
     @Test
     public void testCommitSameDesc() throws Throwable
     {
